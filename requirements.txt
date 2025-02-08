@@ -2,5 +2,5 @@
 azure-functions
 azure-mgmt-network
 azure-identity
-azure-cosmosdb-table
-azure-storage-table
+python-jose
+python-jose-cryptodome
