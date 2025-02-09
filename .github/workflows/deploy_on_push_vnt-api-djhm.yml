@@ -1,7 +1,7 @@
 name: Deploy Python project to Azure Function App
 
 on:
-  [push]
+  push:
   workflow_dispatch:  
 
 # CONFIGURATION
