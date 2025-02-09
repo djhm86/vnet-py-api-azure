@@ -5,3 +5,4 @@ azure-identity
 python-jose
 python-jose-cryptodome
 azure-data-tables
+azure-keyvault-secrets

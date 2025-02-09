@@ -3,6 +3,7 @@ import azure.functions as func
 import logging
 import json
 from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.network.models import VirtualNetwork, Subnet
 import os
@@ -12,7 +13,12 @@ from typing import List, Dict
 from azure.data.tables import TableServiceClient
 app = func.FunctionApp()
 
-# Authentication middleware
+def get_jwt_secret():
+    key_vault_url = os.environ['KEY_VAULT_URL']
+    credential = DefaultAzureCredential()
+    secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+    return secret_client.get_secret("jwt-secret-key").value
+
 def require_auth(req: func.HttpRequest) -> bool:
     try:
         auth_header = req.headers.get('Authorization')
@@ -20,11 +26,11 @@ def require_auth(req: func.HttpRequest) -> bool:
             return False
         
         token = auth_header.split(' ')[1]
-        # Verify JWT token using your Azure AD configuration
-        # This is a simplified example - implement proper JWT validation
+        jwt_secret = get_jwt_secret()
+        
         decoded = jwt.decode(
             token,
-            os.environ['JWT_SECRET_KEY'],
+            jwt_secret,
             algorithms=['HS256']
         )
         return True
@@ -36,6 +42,13 @@ def get_network_client():
     credential = DefaultAzureCredential()
     subscription_id = os.environ['AZURE_SUBSCRIPTION_ID']
     return NetworkManagementClient(credential, subscription_id)
+
+def get_storage_connection():
+    key_vault_url = os.environ['KEY_VAULT_URL']
+    credential = DefaultAzureCredential()
+    secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+    return secret_client.get_secret("storage-connection-string").value
+
 
 @app.route(route="create_vnet", auth_level="anonymous")
 async def create_vnet(req: func.HttpRequest) -> func.HttpResponse:
@@ -110,9 +123,7 @@ async def create_vnet(req: func.HttpRequest) -> func.HttpResponse:
 def store_vnet_info(vnet, resource_group):
     try:
         # Get external storage account credentials from environment variables
-        account_name = os.environ['STORAGE_ACCOUNT_NAME']
-        account_key = os.environ['STORAGE_ACCOUNT_KEY']
-        connection_string = f"DefaultEndpointsProtocol=https;AccountName=strvnetapitable;AccountKey=IoJbRNmEk76wHil/dGYv8W6MhdsgHmaX4WAFYwSCYIDesmPjT67EOVmmqzPSBY4AFm2rlJXBAKKM+AStpwI0Jw==;EndpointSuffix=core.windows.net"
+        connection_string = get_storage_connection()
         
         table_service = TableServiceClient.from_connection_string(connection_string)
         table_client = table_service.get_table_client('vnets')
@@ -159,7 +170,7 @@ async def get_vnets(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        connection_string = f"DefaultEndpointsProtocol=https;AccountName=strvnetapitable;AccountKey=IoJbRNmEk76wHil/dGYv8W6MhdsgHmaX4WAFYwSCYIDesmPjT67EOVmmqzPSBY4AFm2rlJXBAKKM+AStpwI0Jw==;EndpointSuffix=core.windows.net"
+        connection_string = get_storage_connection()
         table_service = TableServiceClient.from_connection_string(connection_string)
         table_client = table_service.get_table_client('vnets')
         
