@@ -131,6 +131,9 @@ obj
 appsettings.json
 local.settings.json
 
+#Invoke Function
+invoke_function.py
+
 # Azurite artifacts
 __blobstorage__
 __queuestorage__
