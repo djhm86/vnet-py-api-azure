@@ -13,6 +13,8 @@ from typing import List, Dict
 from azure.data.tables import TableServiceClient
 app = func.FunctionApp()
 
+logging.basicConfig(level=logging.INFO, filename="py_log.log",filemode="w")
+
 def get_jwt_secret():
     key_vault_url = os.environ['KEY_VAULT_URL']
     credential = DefaultAzureCredential()
