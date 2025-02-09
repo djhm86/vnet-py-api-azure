@@ -9,7 +9,7 @@ import os
 from jose import jwt
 from datetime import datetime
 from typing import List, Dict
-
+from azure.data.tables import TableServiceClient
 app = func.FunctionApp()
 
 # Authentication middleware
@@ -86,7 +86,7 @@ async def create_vnet(req: func.HttpRequest) -> func.HttpResponse:
         vnet = poller.result()
         
         # Store VNET info in Azure Table Storage
-        store_vnet_info(vnet)
+        store_vnet_info(vnet, resource_group)
         
         return func.HttpResponse(
             json.dumps({
@@ -107,9 +107,13 @@ async def create_vnet(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500
         )
 
-def store_vnet_info(vnet):
+def store_vnet_info(vnet, resource_group):
     try:
-        connection_string = os.environ['AzureWebJobsStorage']
+        # Get external storage account credentials from environment variables
+        account_name = os.environ['STORAGE_ACCOUNT_NAME']
+        account_key = os.environ['STORAGE_ACCOUNT_KEY']
+        connection_string = f"DefaultEndpointsProtocol=https;AccountName=strvnetapitable;AccountKey=IoJbRNmEk76wHil/dGYv8W6MhdsgHmaX4WAFYwSCYIDesmPjT67EOVmmqzPSBY4AFm2rlJXBAKKM+AStpwI0Jw==;EndpointSuffix=core.windows.net"
+        
         table_service = TableServiceClient.from_connection_string(connection_string)
         table_client = table_service.get_table_client('vnets')
         
@@ -121,7 +125,7 @@ def store_vnet_info(vnet):
         
         # Prepare entity data
         entity = {
-            'PartitionKey': vnet.resource_group,
+            'PartitionKey': resource_group,
             'RowKey': vnet.name,
             'ID': vnet.id,
             'Location': vnet.location,
@@ -137,7 +141,7 @@ def store_vnet_info(vnet):
         
     except Exception as e:
         logging.error(f"Error storing VNET info: {str(e)}")
-        raise        
+        raise     
 
 @app.route(route="get_vnets", auth_level="anonymous")
 async def get_vnets(req: func.HttpRequest) -> func.HttpResponse:
@@ -155,7 +159,7 @@ async def get_vnets(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        connection_string = os.environ['AzureWebJobsStorage']
+        connection_string = f"DefaultEndpointsProtocol=https;AccountName=strvnetapitable;AccountKey=IoJbRNmEk76wHil/dGYv8W6MhdsgHmaX4WAFYwSCYIDesmPjT67EOVmmqzPSBY4AFm2rlJXBAKKM+AStpwI0Jw==;EndpointSuffix=core.windows.net"
         table_service = TableServiceClient.from_connection_string(connection_string)
         table_client = table_service.get_table_client('vnets')
         
@@ -170,7 +174,7 @@ async def get_vnets(req: func.HttpRequest) -> func.HttpResponse:
                 "location": entity['Location'],
                 "address_space": json.loads(entity['AddressSpace']),
                 "subnets": json.loads(entity['Subnets']),
-                "created_at": entity['Timestamp']
+                "created_at": entity._metadata["timestamp"].isoformat()
             })
         
         return func.HttpResponse(
