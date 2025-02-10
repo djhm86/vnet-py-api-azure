@@ -54,11 +54,11 @@ def get_storage_connection():
 
 @app.route(route="create_vnet", auth_level="anonymous")
 async def create_vnet(req: func.HttpRequest) -> func.HttpResponse:
-    if not require_auth(req):
-        return func.HttpResponse(
-            "Unauthorized",
-            status_code=401
-        )
+    # if not require_auth(req):
+    #     return func.HttpResponse(
+    #         "Unauthorized",
+    #         status_code=401
+    #     )
     
     try:
         req_body = req.get_json()
@@ -158,11 +158,11 @@ def store_vnet_info(vnet, resource_group):
 
 @app.route(route="get_vnets", auth_level="anonymous")
 async def get_vnets(req: func.HttpRequest) -> func.HttpResponse:
-    if not require_auth(req):
-        return func.HttpResponse(
-            "Unauthorized",
-            status_code=401
-        )
+    # if not require_auth(req):
+    #     return func.HttpResponse(
+    #         "Unauthorized",
+    #         status_code=401
+    #     )
     
     try:
         resource_group = req.params.get('resource_group')
