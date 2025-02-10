@@ -7,35 +7,125 @@ from azure.keyvault.secrets import SecretClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.network.models import VirtualNetwork, Subnet
 import os
-from jose import jwt
+#from jose import jwt
+import jwt
 from datetime import datetime
 from typing import List, Dict
 from azure.data.tables import TableServiceClient
+#import msal
+import requests
+
 app = func.FunctionApp()
 
 logging.basicConfig(level=logging.INFO, filename="py_log.log",filemode="w")
 
-def get_jwt_secret():
-    key_vault_url = os.environ['KEY_VAULT_URL']
-    credential = DefaultAzureCredential()
-    secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
-    return secret_client.get_secret("jwt-secret-key").value
+# def get_jwt_secret():
+#     key_vault_url = os.environ['KEY_VAULT_URL']
+#     credential = DefaultAzureCredential()
+#     secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+#     return secret_client.get_secret("jwt-secret-key").value
+
+# def get_access_token():
+#     try:
+#         client_id = os.environ['AZURE_CLIENT_ID']
+#         client_secret = get_jwt_secret()
+#         tenant_id = os.environ['AZURE_TENANT_ID']
+        
+#         # Initialize MSAL client
+#         authority = f"https://login.microsoftonline.com/{tenant_id}"
+#         app = msal.ConfidentialClientApplication(
+#             client_id,
+#             authority=authority,
+#             client_credential=client_secret
+#         )
+        
+#         # Get token using client credentials flow
+#         scopes = ['https://management.azure.com/.default']
+#         result = app.acquire_token_for_client(scopes=scopes)
+        
+#         if 'access_token' in result:
+#             return result['access_token']
+#         else:
+#             raise Exception(f"Error getting token: {result.get('error_description')}")
+            
+#     except Exception as e:
+#         logging.error(f"Error getting access token: {str(e)}")
+#         raise
+
+# def require_auth(req: func.HttpRequest) -> bool:
+#     try:
+#         auth_header = req.headers.get('Authorization')
+#         if not auth_header:
+#             return False
+        
+#         token = auth_header.split(' ')[1]
+        
+#         # Validate token against Azure AD
+#         tenant_id = os.environ['AZURE_TENANT_ID']
+#         validation_url = f"https://login.microsoftonline.com/{tenant_id}/discovery/keys"
+        
+#         try:
+#             decoded = jwt.decode(
+#                 token,
+#                 requests.get(validation_url).json(),
+#                 algorithms=['RS256'],
+#                 audience=os.environ['AZURE_CLIENT_ID']
+#             )
+#             return True
+#         except Exception as e:
+#             logging.error(f"Token validation error: {str(e)}")
+#             return False
+            
+#     except Exception as e:
+#         logging.error(f"Authentication error: {str(e)}")
+#         return False
+
+# Load Azure AD details from environment variables
+TENANT_ID = os.getenv("AZURE_TENANT_ID")
+CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
+API_AUDIENCE = "api://AzureFunctionAPI"
+JWKS_URL = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
+
+def get_jwks():
+    """Retrieve JWKS (JSON Web Key Set) from Azure AD for JWT validation."""
+    response = requests.get(JWKS_URL)
+    return response.json()
+
+def decode_jwt(token: str):
+    """Validate and decode JWT token from Azure AD."""
+    try:
+        jwks = get_jwks()
+        header = jwt.get_unverified_header(token)
+        key = next((k for k in jwks["keys"] if k["kid"] == header["kid"]), None)
+
+        if not key:
+            raise Exception("Invalid token")
+
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+        payload = jwt.decode(token, public_key, algorithms=["RS256"], audience=API_AUDIENCE)
+        return payload
+
+    except jwt.ExpiredSignatureError:
+        raise Exception("Token expired")
+    #except jwt.InvalidTokenError:
+    #    raise Exception("Invalid token")
 
 def require_auth(req: func.HttpRequest) -> bool:
+    """Azure Function HTTP trigger for secure API endpoint."""
+    logging.info("Processing request...")
+
+    # Extract Authorization header
+    auth_header = req.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logging.error (f"Missing or invalid Authorization header")
+        return False
+    # Extract token
+    token = auth_header.split(" ")[1]
+
     try:
-        auth_header = req.headers.get('Authorization')
-        if not auth_header:
-            return False
-        
-        token = auth_header.split(' ')[1]
-        jwt_secret = get_jwt_secret()
-        
-        decoded = jwt.decode(
-            token,
-            jwt_secret,
-            algorithms=['HS256']
-        )
+        user_info = decode_jwt(token)
         return True
+
     except Exception as e:
         logging.error(f"Authentication error: {str(e)}")
         return False
@@ -54,11 +144,11 @@ def get_storage_connection():
 
 @app.route(route="create_vnet", auth_level="anonymous")
 async def create_vnet(req: func.HttpRequest) -> func.HttpResponse:
-    # if not require_auth(req):
-    #     return func.HttpResponse(
-    #         "Unauthorized",
-    #         status_code=401
-    #     )
+    if not require_auth(req):
+        return func.HttpResponse(
+            "Unauthorized",
+            status_code=401
+        )
     
     try:
         req_body = req.get_json()
@@ -158,11 +248,11 @@ def store_vnet_info(vnet, resource_group):
 
 @app.route(route="get_vnets", auth_level="anonymous")
 async def get_vnets(req: func.HttpRequest) -> func.HttpResponse:
-    # if not require_auth(req):
-    #     return func.HttpResponse(
-    #         "Unauthorized",
-    #         status_code=401
-    #     )
+    if not require_auth(req):
+        return func.HttpResponse(
+            "Unauthorized",
+            status_code=401
+        )
     
     try:
         resource_group = req.params.get('resource_group')
