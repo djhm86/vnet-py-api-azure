@@ -7,7 +7,6 @@ from azure.keyvault.secrets import SecretClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.network.models import VirtualNetwork, Subnet
 import os
-#from jose import jwt
 import jwt
 from datetime import datetime
 from typing import List, Dict
@@ -18,67 +17,6 @@ import requests
 app = func.FunctionApp()
 
 logging.basicConfig(level=logging.INFO, filename="py_log.log",filemode="w")
-
-# def get_jwt_secret():
-#     key_vault_url = os.environ['KEY_VAULT_URL']
-#     credential = DefaultAzureCredential()
-#     secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
-#     return secret_client.get_secret("jwt-secret-key").value
-
-# def get_access_token():
-#     try:
-#         client_id = os.environ['AZURE_CLIENT_ID']
-#         client_secret = get_jwt_secret()
-#         tenant_id = os.environ['AZURE_TENANT_ID']
-        
-#         # Initialize MSAL client
-#         authority = f"https://login.microsoftonline.com/{tenant_id}"
-#         app = msal.ConfidentialClientApplication(
-#             client_id,
-#             authority=authority,
-#             client_credential=client_secret
-#         )
-        
-#         # Get token using client credentials flow
-#         scopes = ['https://management.azure.com/.default']
-#         result = app.acquire_token_for_client(scopes=scopes)
-        
-#         if 'access_token' in result:
-#             return result['access_token']
-#         else:
-#             raise Exception(f"Error getting token: {result.get('error_description')}")
-            
-#     except Exception as e:
-#         logging.error(f"Error getting access token: {str(e)}")
-#         raise
-
-# def require_auth(req: func.HttpRequest) -> bool:
-#     try:
-#         auth_header = req.headers.get('Authorization')
-#         if not auth_header:
-#             return False
-        
-#         token = auth_header.split(' ')[1]
-        
-#         # Validate token against Azure AD
-#         tenant_id = os.environ['AZURE_TENANT_ID']
-#         validation_url = f"https://login.microsoftonline.com/{tenant_id}/discovery/keys"
-        
-#         try:
-#             decoded = jwt.decode(
-#                 token,
-#                 requests.get(validation_url).json(),
-#                 algorithms=['RS256'],
-#                 audience=os.environ['AZURE_CLIENT_ID']
-#             )
-#             return True
-#         except Exception as e:
-#             logging.error(f"Token validation error: {str(e)}")
-#             return False
-            
-#     except Exception as e:
-#         logging.error(f"Authentication error: {str(e)}")
-#         return False
 
 # Load Azure AD details from environment variables
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
@@ -107,8 +45,8 @@ def decode_jwt(token: str):
 
     except jwt.ExpiredSignatureError:
         raise Exception("Token expired")
-    #except jwt.InvalidTokenError:
-    #    raise Exception("Invalid token")
+    except jwt.InvalidTokenError:
+        raise Exception("Invalid token")
 
 def require_auth(req: func.HttpRequest) -> bool:
     """Azure Function HTTP trigger for secure API endpoint."""
@@ -130,10 +68,6 @@ def require_auth(req: func.HttpRequest) -> bool:
         logging.error(f"Authentication error: {str(e)}")
         return False
 
-# def get_network_client():
-#     credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
-#     subscription_id = os.environ['AZURE_SUBSCRIPTION_ID']
-#     return NetworkManagementClient(credential, subscription_id)
 
 def get_network_client():
     try:
@@ -176,12 +110,6 @@ def get_network_client():
     except Exception as e:
         logging.error(f"Error creating network client: {str(e)}")
         raise
-
-# def get_storage_connection():
-#     key_vault_url = os.environ['KEY_VAULT_URL']
-#     credential = DefaultAzureCredential()
-#     secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
-#     return secret_client.get_secret("storage-connection-string").value
 
 
 @app.route(route="create_vnet", auth_level="anonymous")
