@@ -45,8 +45,8 @@ def decode_jwt(token: str):
 
     except jwt.ExpiredSignatureError:
         raise Exception("Token expired")
-    except jwt.InvalidTokenError:
-        raise Exception("Invalid token")
+    #except jwt.InvalidTokenError:
+    #   raise Exception("Invalid token")
 
 def require_auth(req: func.HttpRequest) -> bool:
     """Azure Function HTTP trigger for secure API endpoint."""
