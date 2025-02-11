@@ -135,11 +135,11 @@ def get_network_client():
     subscription_id = os.environ['AZURE_SUBSCRIPTION_ID']
     return NetworkManagementClient(credential, subscription_id)
 
-def get_storage_connection():
-    key_vault_url = os.environ['KEY_VAULT_URL']
-    credential = DefaultAzureCredential()
-    secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
-    return secret_client.get_secret("storage-connection-string").value
+# def get_storage_connection():
+#     key_vault_url = os.environ['KEY_VAULT_URL']
+#     credential = DefaultAzureCredential()
+#     secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+#     return secret_client.get_secret("storage-connection-string").value
 
 
 @app.route(route="create_vnet", auth_level="anonymous")
@@ -215,7 +215,7 @@ async def create_vnet(req: func.HttpRequest) -> func.HttpResponse:
 def store_vnet_info(vnet, resource_group):
     try:
         # Get external storage account credentials from environment variables
-        connection_string = get_storage_connection()
+        connection_string = os.environ['AZURE_STORAGE_CONN']
         
         table_service = TableServiceClient.from_connection_string(connection_string)
         table_client = table_service.get_table_client('vnets')
@@ -262,7 +262,7 @@ async def get_vnets(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             )
         
-        connection_string = get_storage_connection()
+        connection_string = os.environ['AZURE_STORAGE_CONN']
         table_service = TableServiceClient.from_connection_string(connection_string)
         table_client = table_service.get_table_client('vnets')
         
