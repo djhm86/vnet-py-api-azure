@@ -1,0 +1,12 @@
+
+azure-functions
+azure-mgmt-network
+azure-identity
+python-jose
+python-jose-cryptodome
+azure-data-tables
+azure-keyvault-secrets
+msal
+requests
+PyJWT
+cryptography
