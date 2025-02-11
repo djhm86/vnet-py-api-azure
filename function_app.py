@@ -131,7 +131,7 @@ def require_auth(req: func.HttpRequest) -> bool:
         return False
 
 def get_network_client():
-    credential = DefaultAzureCredential()
+    credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
     subscription_id = os.environ['AZURE_SUBSCRIPTION_ID']
     return NetworkManagementClient(credential, subscription_id)
 
