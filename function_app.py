@@ -12,7 +12,7 @@ import jwt
 from datetime import datetime
 from typing import List, Dict
 from azure.data.tables import TableServiceClient
-#import msal
+import msal
 import requests
 
 app = func.FunctionApp()
@@ -130,10 +130,52 @@ def require_auth(req: func.HttpRequest) -> bool:
         logging.error(f"Authentication error: {str(e)}")
         return False
 
+# def get_network_client():
+#     credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
+#     subscription_id = os.environ['AZURE_SUBSCRIPTION_ID']
+#     return NetworkManagementClient(credential, subscription_id)
+
 def get_network_client():
-    credential = DefaultAzureCredential(exclude_shared_token_cache_credential=True)
-    subscription_id = os.environ['AZURE_SUBSCRIPTION_ID']
-    return NetworkManagementClient(credential, subscription_id)
+    try:
+        client_id = os.environ['AZURE_CLIENT_ID']
+        client_secret = os.environ['AZURE_CLIENT_SECRET']
+        tenant_id = os.environ['AZURE_TENANT_ID']
+        subscription_id = os.environ['AZURE_SUBSCRIPTION_ID']
+        
+        # Get token using MSAL
+        authority = f"https://login.microsoftonline.com/{tenant_id}"
+        app = msal.ConfidentialClientApplication(
+            client_id,
+            authority=authority,
+            client_credential=client_secret
+        )
+        
+        # Get access token for Azure Resource Manager
+        result = app.acquire_token_for_client(
+            scopes=['https://management.azure.com/.default']
+        )
+        
+        if 'access_token' not in result:
+            raise Exception(f"Failed to get token: {result.get('error_description')}")
+            
+        token = result['access_token']
+        
+        # Create credentials using the token
+        from azure.core.credentials import TokenCredential
+        class ClientCredential(TokenCredential):
+            def __init__(self, token):
+                self.token = token
+            def get_token(self, *scopes, **kwargs):
+                from azure.core.credentials import AccessToken
+                import time
+                return AccessToken(self.token, time.time() + 3600)
+        
+        credentials = ClientCredential(token)
+        return NetworkManagementClient(credentials, subscription_id)
+        
+    except Exception as e:
+        logging.error(f"Error creating network client: {str(e)}")
+        raise
 
 # def get_storage_connection():
 #     key_vault_url = os.environ['KEY_VAULT_URL']
