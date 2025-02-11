@@ -55,4 +55,87 @@ func azure functionapp publish my-fastapi-app
 az functionapp show --name vet-api-app --resource-group MyResourceGroup --query defaultHostName -o tsv
 ```
 
+Implementing Azure AD Authentication for an API in Azure Function App V2
+Prerequisites
+1. Azure CLI installed (az --version)
+2. Azure Function App V2 deployed
+3. Azure Active Directory (AAD) App Registration set up
 
+```console
+#Create an Azure AD App
+az ad app create --display-name "AzureFunctionAPI" --identifier-uris "api://AzureFunctionAPI"
+#Create a Service Principal
+az ad sp create --id <APPLICATION_ID>
+#Create a client secret
+az ad app credential reset --id <APPLICATION_ID> --append
+```
+In App registerations in Azure AD, under API permissions, provide User.Read and User.Write permission to your API application.
+
+Configure Azure Function App for AAD Authentication
+```console
+az functionapp update --name <YOUR_FUNCTION_APP> --resource-group <YOUR_RESOURCE_GROUP> --set authSettings.enabled=true
+az functionapp auth update --name <YOUR_FUNCTION_APP> --resource-group <YOUR_RESOURCE_GROUP> --set authSettings.unauthenticatedClientAction=RedirectToLoginPage
+```
+In the Azure Portal:
+
+Go to Function App → Authentication.
+Enable Authentication and select Microsoft Identity Platform.
+Set Allowed Audiences to api://AzureFunctionAPI.
+
+Test the Authentication
+```console
+az account get-access-token --resource api://AzureFunctionAPI
+```
+Call the Secure API
+Replace <ACCESS_TOKEN> with the token from the previous step:
+```console
+curl -X GET "https://<YOUR_FUNCTION_APP>.azurewebsites.net/api/get_vnets?resource_group=<resource-group-name>" \
+     -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+Expected correct response (HTTP-200) will provide list of vnets which have been created using the create-vnet api of the function app.
+
+
+
+This implementation provides two Azure Functions:
+
+1. create_vnet: Creates a VNET with multiple subnets
+
+Method: POST
+Requires authentication token in Authorization header
+Request body example:
+```console
+{
+    "resource_group": "my-resource-group",
+    "vnet_name": "my-vnet",
+    "location": "eastus",
+    "address_space": "10.0.0.0/16",
+    "subnets": [
+        {
+            "name": "subnet1",
+            "address_prefix": "10.0.0.0/24"
+        },
+        {
+            "name": "subnet2",
+            "address_prefix": "10.0.1.0/24"
+        }
+    ]
+}
+```
+2. get_vnets: Retrieves all VNETs in a resource group
+
+Method: GET
+Requires authentication token in Authorization header
+Query parameter: resource_group
+
+Example to invoke create vnet - 
+
+```console
+az account get-access-token --resource api://AzureFunctionAPI
+```
+Call the Secure API
+Replace <ACCESS_TOKEN> with the token from the previous step:
+```console
+curl -X GET "https://vnet-api-djhm.azurewebsites.net/api/create_vnet" \
+     -H "Authorization: Bearer <ACCESS_TOKEN>" -H "Content-Type: application/json" --data '{"resource_group":"my-resource-group","vnet_name":"my-vnet","location":"eastus","address_space":"10.0.0.0/16","subnets":[{"name":"subnet1","address_prefix":"10.0.0.0/24"},{"name":"subnet2","address_prefix":"10.0.1.0/24"}]}'
+```
+Expected correct response (HTTP-200) will return the details of the just created vnet using create_vnet api of the function app.
