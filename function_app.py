@@ -18,6 +18,7 @@ app = func.FunctionApp()
 
 logging.basicConfig(level=logging.INFO, filename="py_log.log",filemode="w")
 
+
 # Load Azure AD details from environment variables
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
 CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
@@ -46,7 +47,7 @@ def decode_jwt(token: str):
     except jwt.ExpiredSignatureError:
         raise Exception("Token expired")
     #except jwt.InvalidTokenError:
-    #   raise Exception("Invalid token")
+    #    raise Exception("Invalid token")
 
 def require_auth(req: func.HttpRequest) -> bool:
     """Azure Function HTTP trigger for secure API endpoint."""

@@ -127,7 +127,7 @@ Method: GET
 Requires authentication token in Authorization header
 Query parameter: resource_group
 
-Example to invoke create vnet - 
+Example to invoke create vnet API - 
 
 ```console
 az account get-access-token --resource api://AzureFunctionAPI
@@ -135,7 +135,20 @@ az account get-access-token --resource api://AzureFunctionAPI
 Call the Secure API
 Replace <ACCESS_TOKEN> with the token from the previous step:
 ```console
-curl -X GET "https://vnet-api-djhm.azurewebsites.net/api/create_vnet" \
+curl -X GET "https://vnet-api-app.azurewebsites.net/api/create_vnet" \
      -H "Authorization: Bearer <ACCESS_TOKEN>" -H "Content-Type: application/json" --data '{"resource_group":"my-resource-group","vnet_name":"my-vnet","location":"eastus","address_space":"10.0.0.0/16","subnets":[{"name":"subnet1","address_prefix":"10.0.0.0/24"},{"name":"subnet2","address_prefix":"10.0.1.0/24"}]}'
 ```
 Expected correct response (HTTP-200) will return the details of the just created vnet using create_vnet api of the function app.
+
+Example to invoke get vnet API- 
+```console
+az account get-access-token --resource api://AzureFunctionAPI
+```
+Call the Secure API
+Replace <ACCESS_TOKEN> with the token from the previous step:
+```console
+curl -X GET "https://vnet-api-app.azurewebsites.net.azurewebsites.net/api/get_vnets?resource_group=my-resource-group" \
+     -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+Expected correct response (HTTP-200) will provide list of vnets which have been created using the create-vnet api of the function app.
