@@ -119,7 +119,6 @@ venv.bak/
 dmypy.json
 
 #vscode
-.vscode
 
 # Pyre type checker
 .pyre/
@@ -132,6 +131,7 @@ local.settings.json
 
 #Invoke Function
 invoke_function.py
+.vscode
 
 # Azurite artifacts
 __blobstorage__
